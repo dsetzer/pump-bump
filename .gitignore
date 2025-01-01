@@ -4,6 +4,9 @@
 node_modules/
 docs/
 executable/
+build/
+dist/
+*.log
 /.pnp
 .pnp.js
 all_pools.json

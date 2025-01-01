@@ -24,15 +24,17 @@ export default class BumpCommand {
     private readonly UNIT_PRICE: number = 250000;
     private readonly MIN_BUY_AMOUNT: number = 0.01;
     private readonly BUY_PERCENTAGE: number = 0.1;
-    private readonly MAX_SELL_PERCENTAGE: number = 0.5; // Maximum 50% sell in high activity
-    private readonly BASE_SELL_PERCENTAGE: number = 0.3; // Base 30% sell in normal activity
-    private readonly MIN_SELL_PERCENTAGE: number = 0.2; // Minimum 20% sell in low activity
+    private readonly MAX_SELL_PERCENTAGE: number = 0.8; // Increased to 80% for high activity
+    private readonly BASE_SELL_PERCENTAGE: number = 0.4; // Increased to 40% for normal activity
+    private readonly MIN_SELL_PERCENTAGE: number = 0.25; // Increased to 25% for low activity
     private readonly SELL_PERCENTAGE: number = 0.3; // Sell 30% at a time
-    private readonly MIN_BUYS_BEFORE_SELL: number = 4; // Wait for at least 4 buys before selling
-    private readonly MAX_BUYS_BEFORE_SELL: number = 8; // Force sell after 8 buys
+    private readonly MIN_BUYS_BEFORE_SELL: number = 2; // Reduced to be more responsive
+    private readonly MAX_BUYS_BEFORE_SELL: number = 5; // Reduced to lock in profits sooner
     private buysCount: number = 0;
     private retryCount: number = 0;
     private marketActivity: number = 0; // Track market activity score
+    private lastPrice: number = 0;
+    private priceIncreaseCounter: number = 0;
 
     constructor() {
         // Check for required environment variables
@@ -248,26 +250,25 @@ export default class BumpCommand {
             new Uint8Array(bs58.decode(this.bumperPrivateKey))
         );
 
-        // Calculate dynamic buy amount
-        const solIn = await this.calculateBuyAmount();
-        if (solIn <= 0) {
-            throw new Error('Invalid buy amount calculated');
-        }
-
         let tokenBalance = await getTokenBalance(tokenAccount);
         console.log('Current token balance:', tokenBalance);
             
-        // Decide whether to buy or sell with dynamic sell chance based on activity
-        const sellChance = 0.3 + (this.marketActivity * 0.4); // 30-70% chance based on activity
+        // Enhanced sell decision logic
+        const priceMultiplier = Math.min(1 + (this.priceIncreaseCounter * 0.2), 2); // Up to 2x more likely to sell on price increases
+        const sellChance = (0.3 + (this.marketActivity * 0.4)) * priceMultiplier;
         const shouldSell = this.buysCount >= this.MIN_BUYS_BEFORE_SELL && 
-            (this.buysCount >= this.MAX_BUYS_BEFORE_SELL || Math.random() < sellChance);
+            (this.buysCount >= this.MAX_BUYS_BEFORE_SELL || 
+             Math.random() < sellChance || 
+             this.priceIncreaseCounter >= 3); // Force sell after 3 consecutive price increases
 
         if (shouldSell && tokenBalance > 0) {
-            const sellPercentage = this.calculateDynamicSellPercentage();
+            const sellPercentage = this.calculateDynamicSellPercentage() * 
+                (1 + (this.priceIncreaseCounter * 0.1)); // Sell up to 30% more on price increases
+            
             console.log(`Selling ${(sellPercentage * 100).toFixed(1)}% of tokens after ${this.buysCount} buys`);
             console.log(`Market Activity: ${(this.marketActivity * 100).toFixed(1)}%, Sell Chance: ${(sellChance * 100).toFixed(1)}%`);
             
-            const sellAmount = Math.floor(tokenBalance * sellPercentage);
+            const sellAmount = Math.floor(tokenBalance * Math.min(sellPercentage, 0.9)); // Never sell more than 90%
             
             if (sellAmount > 0) {
                 console.log('Selling token amount:', sellAmount);
@@ -282,23 +283,34 @@ export default class BumpCommand {
                     throw new Error('Sell operation failed');
                 }
                 console.log('Sell operation successful');
-                this.buysCount = 0; // Reset buy counter after successful sell
+                this.buysCount = 0;
+                this.priceIncreaseCounter = 0; // Reset after selling
             }
         } else {
-            // Buy operation
-            console.log('Buying token with dynamic amount:', solIn);
-            const buySuccess = await this.buyTokens(
-                this.sdk,
-                walletPrivateKey,
-                new PublicKey(this.mintAddress),
-                solIn
-            );
+            // Only buy if we haven't seen too many price increases
+            if (this.priceIncreaseCounter < 4) {
+                // Calculate dynamic buy amount
+                const solIn = await this.calculateBuyAmount();
+                if (solIn <= 0) {
+                    throw new Error('Invalid buy amount calculated');
+                }
 
-            if (!buySuccess) {
-                throw new Error('Buy operation failed');
+                console.log('Buying token with dynamic amount:', solIn);
+                const buySuccess = await this.buyTokens(
+                    this.sdk,
+                    walletPrivateKey,
+                    new PublicKey(this.mintAddress),
+                    solIn
+                );
+
+                if (!buySuccess) {
+                    throw new Error('Buy operation failed');
+                }
+                console.log('Buy operation successful');
+                this.buysCount++;
+            } else {
+                console.log('Skipping buy due to high price increase streak');
             }
-            console.log('Buy operation successful');
-            this.buysCount++;
         }
     }
 
@@ -322,25 +334,40 @@ export default class BumpCommand {
             // Update market activity score (0-1 range)
             this.marketActivity = Math.min(liquidityScore * 2, 1);
             
-            // Adjust interval based on liquidity score
-            if (liquidityScore > 0.5) {
-                // High concentration of tokens (lower liquidity)
-                this.adaptiveInterval = 14; // 30 seconds
+            // Try to get current price
+            try {
+                const price = await this.sdk.getPrice(new PublicKey(this.mintAddress));
+                if (this.lastPrice > 0 && price > this.lastPrice) {
+                    this.priceIncreaseCounter++;
+                } else {
+                    this.priceIncreaseCounter = 0;
+                }
+                this.lastPrice = price;
+            } catch (error) {
+                console.error('Error getting price:', error);
+            }
+
+            // Adjust interval based on market conditions
+            if (this.priceIncreaseCounter >= 3 || liquidityScore > 0.5) {
+                // High activity or consistent price increases
+                this.adaptiveInterval = 2; // Very aggressive in good conditions
             } else if (liquidityScore > 0.3) {
-                // Medium distribution
-                this.adaptiveInterval = 8; // 20 seconds
+                // Medium activity
+                this.adaptiveInterval = 4;
             } else {
-                // Well distributed (higher liquidity)
-                this.adaptiveInterval = 2; // 15 seconds
+                // Low activity
+                this.adaptiveInterval = 8;
             }
 
             console.log(`Market Activity Score: ${this.marketActivity.toFixed(2)}`);
             console.log(`Liquidity Score: ${liquidityScore.toFixed(2)}`);
+            console.log(`Price Increase Streak: ${this.priceIncreaseCounter}`);
+            console.log(`Current Price: ${this.lastPrice}`);
             console.log(`Adjusted interval to ${this.adaptiveInterval} seconds`);
             
         } catch (error) {
             console.error('Error calculating optimal interval:', error);
-            this.adaptiveInterval = 20;
+            this.adaptiveInterval = 8;
         }
     }
 
