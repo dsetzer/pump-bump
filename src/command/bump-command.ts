@@ -24,11 +24,15 @@ export default class BumpCommand {
     private readonly UNIT_PRICE: number = 250000;
     private readonly MIN_BUY_AMOUNT: number = 0.01;
     private readonly BUY_PERCENTAGE: number = 0.1;
+    private readonly MAX_SELL_PERCENTAGE: number = 0.5; // Maximum 50% sell in high activity
+    private readonly BASE_SELL_PERCENTAGE: number = 0.3; // Base 30% sell in normal activity
+    private readonly MIN_SELL_PERCENTAGE: number = 0.2; // Minimum 20% sell in low activity
     private readonly SELL_PERCENTAGE: number = 0.3; // Sell 30% at a time
     private readonly MIN_BUYS_BEFORE_SELL: number = 4; // Wait for at least 4 buys before selling
     private readonly MAX_BUYS_BEFORE_SELL: number = 8; // Force sell after 8 buys
     private buysCount: number = 0;
     private retryCount: number = 0;
+    private marketActivity: number = 0; // Track market activity score
 
     constructor() {
         // Check for required environment variables
@@ -253,13 +257,17 @@ export default class BumpCommand {
         let tokenBalance = await getTokenBalance(tokenAccount);
         console.log('Current token balance:', tokenBalance);
             
-        // Decide whether to buy or sell
+        // Decide whether to buy or sell with dynamic sell chance based on activity
+        const sellChance = 0.3 + (this.marketActivity * 0.4); // 30-70% chance based on activity
         const shouldSell = this.buysCount >= this.MIN_BUYS_BEFORE_SELL && 
-            (this.buysCount >= this.MAX_BUYS_BEFORE_SELL || Math.random() < 0.3); // 30% chance to sell if we're past minimum buys
+            (this.buysCount >= this.MAX_BUYS_BEFORE_SELL || Math.random() < sellChance);
 
         if (shouldSell && tokenBalance > 0) {
-            console.log(`Selling ${this.SELL_PERCENTAGE * 100}% of tokens after ${this.buysCount} buys`);
-            const sellAmount = Math.floor(tokenBalance * this.SELL_PERCENTAGE);
+            const sellPercentage = this.calculateDynamicSellPercentage();
+            console.log(`Selling ${(sellPercentage * 100).toFixed(1)}% of tokens after ${this.buysCount} buys`);
+            console.log(`Market Activity: ${(this.marketActivity * 100).toFixed(1)}%, Sell Chance: ${(sellChance * 100).toFixed(1)}%`);
+            
+            const sellAmount = Math.floor(tokenBalance * sellPercentage);
             
             if (sellAmount > 0) {
                 console.log('Selling token amount:', sellAmount);
@@ -296,7 +304,6 @@ export default class BumpCommand {
 
     private async calculateOptimalInterval(): Promise<void> {
         try {
-            // Get token account info
             const connection = this.provider.connection;
             const mintPubKey = new PublicKey(this.mintAddress);
             
@@ -312,29 +319,41 @@ export default class BumpCommand {
             // Calculate liquidity score based on supply distribution
             const liquidityScore = (totalHoldings / Math.pow(10, tokenSupply.value.decimals)) / supply;
             
+            // Update market activity score (0-1 range)
+            this.marketActivity = Math.min(liquidityScore * 2, 1);
+            
             // Adjust interval based on liquidity score
             if (liquidityScore > 0.5) {
                 // High concentration of tokens (lower liquidity)
-                // Use longer intervals to avoid congestion in thin liquidity
                 this.adaptiveInterval = 30; // 30 seconds
             } else if (liquidityScore > 0.3) {
                 // Medium distribution
-                // Moderate frequency for balanced approach
                 this.adaptiveInterval = 20; // 20 seconds
             } else {
                 // Well distributed (higher liquidity)
-                // More frequent trades but still maintaining reasonable spacing
                 this.adaptiveInterval = 15; // 15 seconds
             }
 
-            console.log(`Liquidity score: ${liquidityScore}`);
+            console.log(`Market Activity Score: ${this.marketActivity.toFixed(2)}`);
+            console.log(`Liquidity Score: ${liquidityScore.toFixed(2)}`);
             console.log(`Adjusted interval to ${this.adaptiveInterval} seconds`);
             
         } catch (error) {
             console.error('Error calculating optimal interval:', error);
-            // Fallback to default interval - using conservative approach
             this.adaptiveInterval = 20;
         }
+    }
+
+    private calculateDynamicSellPercentage(): number {
+        // Calculate sell percentage based on market activity
+        const dynamicPercentage = this.BASE_SELL_PERCENTAGE +
+            (this.marketActivity * (this.MAX_SELL_PERCENTAGE - this.BASE_SELL_PERCENTAGE));
+        
+        // Ensure it stays within bounds
+        return Math.max(
+            this.MIN_SELL_PERCENTAGE,
+            Math.min(dynamicPercentage, this.MAX_SELL_PERCENTAGE)
+        );
     }
 
     private async calculateBuyAmount(): Promise<number> {
