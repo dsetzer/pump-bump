@@ -3,6 +3,7 @@
 # dependencies
 node_modules/
 docs/
+executable/
 /.pnp
 .pnp.js
 all_pools.json

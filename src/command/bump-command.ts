@@ -6,9 +6,9 @@ import { DEFAULT_DECIMALS, PumpFunSDK } from 'pumpdotfun-sdk';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import { Wallet } from "@coral-xyz/anchor";
 import { config } from 'dotenv';
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction } from '@solana/web3.js';
+import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction, VersionedTransaction, TransactionConfirmationStrategy } from '@solana/web3.js';
 import bs58 from 'bs58';
-import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 config();
 
 export default class BumpCommand {
@@ -17,7 +17,6 @@ export default class BumpCommand {
     private walletAddress: string;
     private provider: AnchorProvider;
     private sdk: PumpFunSDK;
-    private counter: number = 1;
     private adaptiveInterval: number = 10; // Default interval in seconds
     private readonly SLIPPAGE_BASIS_POINTS: bigint = 100n;
     private readonly MAX_RETRIES: number = 3;
@@ -157,12 +156,25 @@ export default class BumpCommand {
                         )
                     );
 
+                    // Convert to VersionedTransaction
+                    const latestBlockhash = await this.provider.connection.getLatestBlockhash();
+                    transaction.recentBlockhash = latestBlockhash.blockhash;
+                    transaction.feePayer = keypair.publicKey;
+                    
+                    const versionedTransaction = new VersionedTransaction(
+                        transaction.compileMessage()
+                    );
+                    versionedTransaction.sign([keypair]);
+
                     const signature = await this.provider.connection.sendTransaction(
-                        transaction,
-                        [keypair]
+                        versionedTransaction
                     );
 
-                    await this.provider.connection.confirmTransaction(signature);
+                    await this.provider.connection.confirmTransaction({
+                        signature,
+                        blockhash: latestBlockhash.blockhash,
+                        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+                    });
                     console.log('Token account created successfully!');
                     tokenAccount = associatedTokenAddress.toString();
                 } catch (error) {
