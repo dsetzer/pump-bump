@@ -314,6 +314,49 @@ export default class BumpCommand {
         }
     }
 
+    async liquidate(): Promise<void> {
+        console.log('\n=== Starting Liquidation ===');
+        try {
+            const tokenAccount = await getTokenAccount(this.walletAddress, this.mintAddress);
+            if (!tokenAccount) {
+                console.log('No token account found. Nothing to liquidate.');
+                return;
+            }
+
+            const tokenBalance = await getTokenBalance(tokenAccount);
+            if (tokenBalance <= 0) {
+                console.log('Token balance is 0. Nothing to liquidate.');
+                return;
+            }
+
+            console.log(`Current token balance: ${tokenBalance}`);
+            console.log('Liquidating all tokens...');
+
+            const walletPrivateKey = await Keypair.fromSecretKey(
+                new Uint8Array(bs58.decode(this.bumperPrivateKey))
+            );
+
+            const sellSuccess = await this.sellTokens(
+                this.sdk,
+                walletPrivateKey,
+                new PublicKey(this.mintAddress),
+                tokenBalance
+            );
+
+            if (!sellSuccess) {
+                throw new Error('Liquidation failed');
+            }
+
+            console.log('Liquidation successful!');
+            const finalBalance = await getBalance(this.walletAddress);
+            console.log(`Final SOL balance: ${finalBalance.toFixed(4)} SOL`);
+
+        } catch (error) {
+            console.error('Error during liquidation:', error);
+            throw error;
+        }
+    }
+
     private async calculateOptimalInterval(): Promise<void> {
         try {
             const connection = this.provider.connection;
