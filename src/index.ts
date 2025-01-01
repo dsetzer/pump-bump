@@ -1,15 +1,24 @@
 import { config } from 'dotenv';
 config();
 import BumpCommand from './command/bump-command';
-var argv = require('minimist')(process.argv.slice(2));
 
-let privateKey;
-if (process.env.PRIVATE_KEY) {
-    privateKey = process.env.PRIVATE_KEY;
-} else {
-    privateKey = argv.privateKey;
+async function main() {
+    try {
+        console.log('Starting Pump Bump Trading Bot...');
+        
+        // Initialize bot with configuration from environment variables
+        const bumper = new BumpCommand();
+        await bumper.main();
+        
+        console.log('Bot initialized successfully');
+    } catch (error) {
+        console.error('Error initializing bot:', error);
+        process.exit(1);
+    }
 }
-const tokenAddress = argv.tokenAddress;
-const walletAddress = argv.walletAddress;
-const bumper = new BumpCommand(privateKey, tokenAddress, walletAddress);
-bumper.main();
+
+// Handle any unhandled promise rejections
+main().catch(error => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+});

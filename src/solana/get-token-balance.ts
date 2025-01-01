@@ -1,16 +1,31 @@
 import { Connection, PublicKey } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { config } from 'dotenv';
-import { getAccount, getMint } from '@solana/spl-token';
-
 config();
 
 export default async function getTokenBalance(tokenAccount: string) {
-    const connection = new Connection(String(process.env.RPC_URL), 'confirmed');
-    const tokenWallet = new PublicKey(tokenAccount);
+    console.log('\n=== Checking Token Balance ===');
+    console.log('Token Account:', tokenAccount);
 
-    const info = await getAccount(connection, tokenWallet);
-    const amount = Number(info.amount);
-    const mint = await getMint(connection, info.mint);
-    const balance = amount / 10 ** mint.decimals;
-    return balance;
+    try {
+        const connection = new Connection(String(process.env.RPC_URL), 'confirmed');
+        const account = await connection.getParsedAccountInfo(new PublicKey(tokenAccount));
+        
+        if (!account.value) {
+            console.log('No token account found');
+            return 0;
+        }
+
+        const parsedData = (account.value.data as any).parsed;
+        const balance = parsedData.info.tokenAmount.uiAmount;
+        
+        console.log('Token Balance:', balance);
+        console.log('Token Decimals:', parsedData.info.tokenAmount.decimals);
+        console.log('================================\n');
+        
+        return balance;
+    } catch (error) {
+        console.error('Error getting token balance:', error);
+        throw error;
+    }
 }
