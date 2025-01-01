@@ -325,13 +325,13 @@ export default class BumpCommand {
             // Adjust interval based on liquidity score
             if (liquidityScore > 0.5) {
                 // High concentration of tokens (lower liquidity)
-                this.adaptiveInterval = 30; // 30 seconds
+                this.adaptiveInterval = 14; // 30 seconds
             } else if (liquidityScore > 0.3) {
                 // Medium distribution
-                this.adaptiveInterval = 20; // 20 seconds
+                this.adaptiveInterval = 8; // 20 seconds
             } else {
                 // Well distributed (higher liquidity)
-                this.adaptiveInterval = 15; // 15 seconds
+                this.adaptiveInterval = 2; // 15 seconds
             }
 
             console.log(`Market Activity Score: ${this.marketActivity.toFixed(2)}`);
