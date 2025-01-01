@@ -25,6 +25,10 @@ class BumpCommand {
         this.UNIT_PRICE = 250000;
         this.MIN_BUY_AMOUNT = 0.01;
         this.BUY_PERCENTAGE = 0.1;
+        this.SELL_PERCENTAGE = 0.3; // Sell 30% at a time
+        this.MIN_BUYS_BEFORE_SELL = 4; // Wait for at least 4 buys before selling
+        this.MAX_BUYS_BEFORE_SELL = 8; // Force sell after 8 buys
+        this.buysCount = 0;
         this.retryCount = 0;
         this.getProvider = () => {
             if (!process.env.RPC_URL) {
@@ -179,27 +183,34 @@ class BumpCommand {
         if (solIn <= 0) {
             throw new Error('Invalid buy amount calculated');
         }
-        let tokenBalance = 0;
-        if (this.counter >= 2) {
-            tokenBalance = await (0, get_token_balance_1.default)(tokenAccount);
-            console.log('Token balance:', tokenBalance);
-            if (tokenBalance > 0) {
-                console.log('Selling token');
-                const sellSuccess = await this.sellTokens(this.sdk, walletPrivateKey, new web3_js_1.PublicKey(this.mintAddress), tokenBalance);
+        let tokenBalance = await (0, get_token_balance_1.default)(tokenAccount);
+        console.log('Current token balance:', tokenBalance);
+        // Decide whether to buy or sell
+        const shouldSell = this.buysCount >= this.MIN_BUYS_BEFORE_SELL &&
+            (this.buysCount >= this.MAX_BUYS_BEFORE_SELL || Math.random() < 0.3); // 30% chance to sell if we're past minimum buys
+        if (shouldSell && tokenBalance > 0) {
+            console.log(`Selling ${this.SELL_PERCENTAGE * 100}% of tokens after ${this.buysCount} buys`);
+            const sellAmount = Math.floor(tokenBalance * this.SELL_PERCENTAGE);
+            if (sellAmount > 0) {
+                console.log('Selling token amount:', sellAmount);
+                const sellSuccess = await this.sellTokens(this.sdk, walletPrivateKey, new web3_js_1.PublicKey(this.mintAddress), sellAmount);
                 if (!sellSuccess) {
                     throw new Error('Sell operation failed');
                 }
                 console.log('Sell operation successful');
-                this.counter = 0;
+                this.buysCount = 0; // Reset buy counter after successful sell
             }
         }
-        console.log('Buying token with dynamic amount:', solIn);
-        const buySuccess = await this.buyTokens(this.sdk, walletPrivateKey, new web3_js_1.PublicKey(this.mintAddress), solIn);
-        if (!buySuccess) {
-            throw new Error('Buy operation failed');
+        else {
+            // Buy operation
+            console.log('Buying token with dynamic amount:', solIn);
+            const buySuccess = await this.buyTokens(this.sdk, walletPrivateKey, new web3_js_1.PublicKey(this.mintAddress), solIn);
+            if (!buySuccess) {
+                throw new Error('Buy operation failed');
+            }
+            console.log('Buy operation successful');
+            this.buysCount++;
         }
-        console.log('Buy operation successful');
-        this.counter++;
     }
     async calculateOptimalInterval() {
         try {
