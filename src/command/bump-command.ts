@@ -11,6 +11,13 @@ import bs58 from 'bs58';
 import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 config();
 
+// Add type declaration for PumpFunSDK
+declare module 'pumpdotfun-sdk' {
+    interface PumpFunSDK {
+        getPriceInfo(mint: PublicKey): Promise<{ price: number }>;
+    }
+}
+
 export default class BumpCommand {
     private bumperPrivateKey: string;
     private mintAddress: string;
@@ -27,7 +34,6 @@ export default class BumpCommand {
     private readonly MAX_SELL_PERCENTAGE: number = 0.8; // Increased to 80% for high activity
     private readonly BASE_SELL_PERCENTAGE: number = 0.4; // Increased to 40% for normal activity
     private readonly MIN_SELL_PERCENTAGE: number = 0.25; // Increased to 25% for low activity
-    private readonly SELL_PERCENTAGE: number = 0.3; // Sell 30% at a time
     private readonly MIN_BUYS_BEFORE_SELL: number = 2; // Reduced to be more responsive
     private readonly MAX_BUYS_BEFORE_SELL: number = 5; // Reduced to lock in profits sooner
     private buysCount: number = 0;
@@ -360,14 +366,15 @@ export default class BumpCommand {
     private async calculateOptimalInterval(): Promise<void> {
         try {
             const connection = this.provider.connection;
-            const mintPubKey = new PublicKey(this.mintAddress);
             
+            // Use the actual wallet address instead of provider's wallet
+
             // Get token supply info
-            const tokenSupply = await connection.getTokenSupply(mintPubKey);
+            const tokenSupply = await connection.getTokenSupply(new PublicKey(this.mintAddress));
             const supply = Number(tokenSupply.value.amount) / Math.pow(10, tokenSupply.value.decimals);
             
             // Get recent token balance changes as a proxy for liquidity
-            const tokenAccounts = await connection.getTokenLargestAccounts(mintPubKey);
+            const tokenAccounts = await connection.getTokenLargestAccounts(new PublicKey(this.mintAddress));
             const totalHoldings = tokenAccounts.value.reduce((acc, account) => 
                 acc + Number(account.amount), 0);
             
@@ -379,7 +386,8 @@ export default class BumpCommand {
             
             // Try to get current price
             try {
-                const price = await this.sdk.getPrice(new PublicKey(this.mintAddress));
+                const priceInfo = await this.sdk.getPriceInfo(new PublicKey(this.mintAddress));
+                const price = priceInfo.price;
                 if (this.lastPrice > 0 && price > this.lastPrice) {
                     this.priceIncreaseCounter++;
                 } else {
@@ -387,7 +395,7 @@ export default class BumpCommand {
                 }
                 this.lastPrice = price;
             } catch (error) {
-                console.error('Error getting price:', error);
+                console.error('Error getting price info:', error);
             }
 
             // Adjust interval based on market conditions

@@ -1,89 +1,209 @@
-# Pump Bump - A pump.fun bumping bot
+# Pump Bump - A pump.fun Automated Trading Bot
 
-💊 A free to use bumping/bump bot for pump.fun! [join the discord](https://discord.gg/HUVAbet2Dp), frend!
+A command-line tool for automated trading on pump.fun platform with advanced features and dynamic trading capabilities.
 
-![Static Badge](https://img.shields.io/badge/degen-100%25-pink)
-![GitHub Repo stars](https://img.shields.io/github/stars/degenfrends/solana-rugchecker)
-![X (formerly Twitter) URL](https://img.shields.io/twitter/url?url=https%3A%2F%2Fx.com%2Fkryptobrah&label=Twitter%2FX)
+![Static Badge](https://img.shields.io/badge/status-active-green)
 
-__Advanced version of this bot for sale in [discord](https://discord.gg/HUVAbet2Dp)!__
-* __Buy&Sell in same transaction__
-* __Bump in random intervalls__
-* __Bump for random amount__
-* __Jito Bundles__
-* __Stealth sells__
-* __Multiple wallet support__
-* __I can add any feature you like__
-
-__Advanced pump.fun bundler for sale in [discord](https://discord.gg/HUVAbet2Dp)!__
+> [!WARNING]
+> **RUG PULL RISK**: This bot provides NO PROTECTION against rug pulls, which are EXTREMELY common on pump.fun. If a rug pull occurs:
+> - Your entire investment will likely be lost
+> - The bot cannot detect or prevent rug pulls
+> - There is no way to recover lost funds
+> 
+> Only trade with funds you are willing to lose completely. Rug pulls can happen at any time without warning.
 
 > [!CAUTION] 
-> Do not use your main wallet with this bot, since you have to expose your private key to your command line and if your computer gets/is compromissed, attackers can read your private key from the command line history or the environment variables.
+> This is experimental software. Use at your own risk. Never use your main wallet with this bot, as you'll need to expose your private key. Always use a fresh wallet with only the funds you intend to trade.
 
-> [!CAUTION] 
-> If you somehow lose your money while using this bot, it is not our fault. We use this bot ourselves in exact this version and we do our best to provide a functioning bot, but in any case of malfunctioning or misonfiguration it is possible to lose your money. So be careful and check always if you got everything correct, before you start the bot!
-
-## If you made some money off of this and you want to contribute to the ongoing development, you can send some SOL to this address: xe18XoG9HpgpmZ6C4GLAfnDtD7xGc6dEjen7NfF3V9g
+## Features
+* Smart Dynamic Trading
+  * Automatic buy amounts based on wallet balance
+  * Adaptive trading intervals (2-8 seconds) based on market conditions
+  * Price increase streak monitoring
+  * Market activity and liquidity scoring
+* Advanced Sell Strategy
+  * Dynamic sell percentages (25-80%) based on market activity
+  * Intelligent profit-taking after 2-5 buy cycles
+  * Increased sell likelihood on consecutive price increases
+* Risk Management
+  * Configurable slippage protection
+  * Transaction retry mechanism
+  * Unit and price limits
+  * Minimum buy amount protection
+* Market Analysis
+  * Real-time price monitoring
+  * Volume and liquidity tracking
+  * Automatic market activity scoring
+* Helius RPC support for reliable transactions
 
 ## Requirements
-You need a fresh Solana wallet with not more than what you want to use for bumping! This is important, since you have to expose your private key to your command line and if your computer gets/is compromissed, attackers can read your private key from the command line history or your environment variables.
+* NodeJS Version >= 20 ([Download here](https://nodejs.org/))
+* A dedicated Solana wallet for trading
+* Helius RPC endpoint ([Get API key](https://dev.helius.xyz/))
 
-You need to export the private key of that Solana wallet.
+## Required Keys and Addresses
 
-You need to have NodeJS Version >= 20 installed.
+### Wallet Setup
+1. Create a new Solana wallet specifically for trading (DO NOT use your main wallet)
+2. Export your wallet's private key:
+   - In Phantom: Settings → Security & Privacy → Export Private Key
+   - In Solflare: Settings → Security → Export Private Key
+3. Your wallet address is your public key, visible in your wallet as "Receive" address
 
-[Download NodeJS here](https://nodejs.org/) for your operating system and run the installer!
+### Token Mint Address
+The token mint address can be found in the URL when viewing the token on pump.fun:
+```
+https://pump.fun/token/[TOKEN_MINT_ADDRESS]
+```
+Copy the mint address from the URL - this is what you'll use for `TOKEN_MINT_ADDRESS`.
 
-> [!TIP] 
-> If you have problems to understand all of this, [join the discord](https://discord.gg/HUVAbet2Dp)!
+### Helius RPC URL
+1. Sign up at [Helius](https://dev.helius.xyz/)
+2. Create a new API key
+3. Use the provided RPC URL in this format:
+```
+https://mainnet.helius-rpc.com/?api-key=YOUR-API-KEY
+```
+
+> [!CAUTION]
+> Never share your private key or API keys with anyone. Keep them secure and never commit them to version control.
 
 ## Installation
-[Download the ZIP file](https://github.com/degenfrends/pump-bump/archive/refs/heads/main.zip) and unpack it, or clone the repository.
 
+Clone the repository:
 ```bash
-git clone https://github.com/degenfrends/pump-bump.git pump-bump
-```
-## Configuration
-Go to the directory in which you unpacked the zip or cloned the repository to.
-Change the name of the .env.example file to .env and open the file in the editor of your choice.
-```bash
+git clone https://github.com/dsetzer/pump-bump.git pump-bump
 cd pump-bump
+```
+
+Install dependencies:
+```bash
+pnpm install
+```
+
+## Building and Packaging
+
+### Development Build
+To build the TypeScript code:
+```bash
+pnpm run build
+```
+
+To run in development mode with auto-reload:
+```bash
+pnpm run dev
+```
+
+### Creating an Executable
+The bot can be packaged into a standalone executable:
+```bash
+pnpm run package
+```
+This will:
+1. Build the TypeScript code
+2. Package the application into an executable
+3. Copy the configuration template
+4. Output everything to the `executable` directory
+
+The packaged executable includes all dependencies and can be run without Node.js installed.
+
+## Configuration
+1. Copy the example environment file:
+```bash
 mv .env.example .env
 ```
-The settings are documented, so it shouldn't be a problem for you to set it up as you wish.
 
+2. Configure the following parameters in `.env`:
 ```python
-# The amount in Solana for which tokens are bought in each transaction
-BUY_AMOUNT=0.0001
-# The time interval in seconds in which tokens are bought
-BUY_INTERVAL=15
-# The amount in Solana you want to add as priorioty fee for each transaction.
-PRIORITY_FEE=0.00003
-# Slipage in decimals. 0.1 = 10%
-SLIPPAGE=0.25
-# The url to your solana node.
-RPC_URL="https://api.mainnet-beta.solana.com"
-# Your exported private key phrase
-PRIVATE_KEY="1234abcde1234abcde12345abcde"
+# Required Command Arguments
+WALLET_PRIVATE_KEY="your-private-key-here"
+TOKEN_MINT_ADDRESS="token-mint-address-here"
+WALLET_ADDRESS="your-wallet-address-here"
+
+# Trading Parameters
+BUY_PERCENTAGE=0.1                # Percentage of wallet balance per trade (0.1 = 10%)
+MIN_BUY_AMOUNT=0.01              # Minimum SOL amount per trade
+MAX_RETRIES=3                    # Maximum transaction retry attempts
+
+# Trading Intervals (seconds)
+MIN_INTERVAL=2                   # Minimum trading interval
+MAX_INTERVAL=8                   # Maximum trading interval
+DEFAULT_INTERVAL=4               # Default trading interval
+
+# Market Activity Thresholds
+VOLUME_THRESHOLD=1000            # Minimum volume threshold
+PRICE_CHANGE_THRESHOLD=0.05      # Price change threshold (0.05 = 5%)
+
+# Transaction Parameters
+SLIPPAGE_BASIS_POINTS=100        # Slippage tolerance (100 = 1%)
+PRIORITY_FEE=0                   # Priority fee in SOL (if needed)
+
+# Trading Limits
+UNIT_LIMIT=250000               # Maximum units per trade
+UNIT_PRICE=250000               # Maximum price per unit
+
+# Sell Strategy Configuration
+MAX_SELL_PERCENTAGE=0.8         # Maximum sell percentage (80%)
+BASE_SELL_PERCENTAGE=0.4        # Base sell percentage (40%)
+MIN_SELL_PERCENTAGE=0.25        # Minimum sell percentage (25%)
+MIN_BUYS_BEFORE_SELL=2         # Minimum buys before allowing sells
+MAX_BUYS_BEFORE_SELL=5         # Force sell after this many buys
+
+# RPC Configuration
+RPC_URL="https://mainnet.helius-rpc.com/?api-key=YOUR-API-KEY"
 ```
 
-> [!CAUTION] 
-> You need a rpc endpoint from helius, triton, quiknode or a better one. Free tiers will not land every transaction.
+> [!NOTE]
+> - The bot uses dynamic buy amounts based on your wallet balance
+> - Trading intervals automatically adjust based on market conditions
+> - Sell percentages adapt to market activity and price movements
+> - Priority fees are optional and were not needed in testing
+> - A Helius RPC endpoint is recommended for reliable transaction execution
 
-Save the .env file.
+## Usage
 
-## Run the bot
-To run the bot, you need your bumping wallet address, the private key of your bumping wallet and the token address of the token you want to bump.
-Open your console/command line/terminal and go to the directory in which you have unpacked or cloned the repository and execute the following command.
+Run the bot with:
 ```bash
-node dist/index.js --privateKey=REPLACE_WITH_PRIVATE_KEY --walletAddress=REPLACE_WITH_WALLET_ADDRESS --tokenAddress=REPLACE_WITH_TOKEN_ADDRESS
+node dist/index.js --walletAddress=YOUR_WALLET_ADDRESS --tokenAddress=TOKEN_MINT_ADDRESS
 ```
-If you save your private key in the .env file, you don't need to pass it as argument.
+
+If your configuration is not in the `.env` file, include it as arguments:
 ```bash
-node dist/index.js --walletAddress=REPLACE_WITH_WALLET_ADDRESS --tokenAddress=REPLACE_WITH_TOKEN_ADDRESS
+node dist/index.js --privateKey=YOUR_PRIVATE_KEY --walletAddress=YOUR_WALLET_ADDRESS --tokenAddress=TOKEN_MINT_ADDRESS
 ```
 
-To stop it press crtl+c in the command line.
+To stop the bot, press `Ctrl+C` in the terminal.
 
-> [!TIP] 
-> If you run into any errors, [open an issue here](https://github.com/degenfrends/pump-bump/issues/new), or [join the discord](https://discord.gg/HUVAbet2Dp).
+## Advanced Features
+
+### Dynamic Trading
+- Buy amounts automatically adjust based on wallet balance (default 10%)
+- Trading intervals vary between 2-8 seconds based on:
+  - Market liquidity score
+  - Price increase streaks
+  - Overall market activity
+- Transactions are monitored and retried on failure (up to 3 times)
+
+### Smart Sell Strategy
+- Base sell percentage: 40% of holdings
+- Adjusts between 25-80% based on:
+  - Market activity score
+  - Price increase streaks
+  - Trading volume
+- Forces sells after:
+  - 5 consecutive buys
+  - 3 consecutive price increases
+  - High market activity detection
+
+### Market Monitoring
+- Real-time price tracking
+- Liquidity scoring based on token supply distribution
+- Market activity scoring (0-1 range)
+- Volume threshold monitoring
+- Price change streak detection
+
+### Emergency Liquidation
+The bot includes an emergency liquidation function that can be triggered to sell all holdings immediately if needed.
+
+## Issues and Support
+If you encounter any issues, please open an issue in the GitHub repository with detailed information about the problem.
