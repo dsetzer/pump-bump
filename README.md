@@ -162,17 +162,36 @@ RPC_URL="https://mainnet.helius-rpc.com/?api-key=YOUR-API-KEY"
 
 ## Usage
 
-Run the bot with:
-```bash
-node dist/index.js --walletAddress=YOUR_WALLET_ADDRESS --tokenAddress=TOKEN_MINT_ADDRESS
-```
+First, ensure your `.env` file is properly configured with all required values:
+- `WALLET_PRIVATE_KEY`
+- `TOKEN_MINT_ADDRESS`
+- `WALLET_ADDRESS`
+- `RPC_URL`
 
-If your configuration is not in the `.env` file, include it as arguments:
+Start the trading bot:
 ```bash
-node dist/index.js --privateKey=YOUR_PRIVATE_KEY --walletAddress=YOUR_WALLET_ADDRESS --tokenAddress=TOKEN_MINT_ADDRESS
+node dist/index.js bump
 ```
+Or simply:
+```bash
+node dist/index.js
+```
+As 'bump' is the default command.
 
-To stop the bot, press `Ctrl+C` in the terminal.
+### Emergency Liquidation
+To immediately sell all tokens and stop trading:
+```bash
+node dist/index.js liquidate
+```
+This command will:
+- Immediately attempt to sell your entire token balance
+- Return the SOL to your wallet
+- Exit after the sale is complete
+
+> [!IMPORTANT]
+> Make sure your `.env` file is properly configured before running any commands. The bot reads all necessary wallet and token addresses from this file.
+
+To stop the bot without liquidating, press `Ctrl+C` in the terminal.
 
 ## Advanced Features
 
@@ -201,9 +220,6 @@ To stop the bot, press `Ctrl+C` in the terminal.
 - Market activity scoring (0-1 range)
 - Volume threshold monitoring
 - Price change streak detection
-
-### Emergency Liquidation
-The bot includes an emergency liquidation function that can be triggered to sell all holdings immediately if needed.
 
 ## Issues and Support
 If you encounter any issues, please open an issue in the GitHub repository with detailed information about the problem.

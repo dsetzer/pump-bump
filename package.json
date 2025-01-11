@@ -20,7 +20,7 @@
         "build": "tsc",
         "test": "echo \"Error: no test specified\" && exit 1",
         "dev": "nodemon src/index.ts --ignore ./var/app.log",
-        "package": "npm run build && pkg . && copy .env.example executable\\.env.example"
+        "package": "tsc && pkg . && copy .env.example executable\\.env.example"
     },
     "author": "",
     "license": "ISC",
